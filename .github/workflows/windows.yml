@@ -1,0 +1,59 @@
+
+name: Windows
+on:
+  push:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows app
+    runs-on: windows-latest
+    env:
+      UV_PYTHON: "3.14"
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+
+    - name: Install Python
+      run: uv python install 3.14
+
+    - name: Install dependencies
+      run: uv sync --no-dev
+
+    - name: Build app
+      run: uv run python install/createapp.py Windows
+
+    - name: Package app
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts
+        Compress-Archive -Path bin/dist/* -DestinationPath artifacts/folie-windows.zip -Force
+
+    - name: Upload workflow artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: kryptos-windows
+        retention-days: 3
+        path: |
+          artifacts/folie-windows.zip
+
+    - name: Upload release artifacts
+      if: github.event_name == 'release'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: >-
+        gh release upload "${{ github.event.release.tag_name }}"
+        "artifacts/folie-windows.zip"
+        --clobber
