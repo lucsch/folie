@@ -44,7 +44,7 @@ jobs:
     - name: Upload workflow artifact
       uses: actions/upload-artifact@v7
       with:
-        name: kryptos-windows
+        name: folie-windows
         retention-days: 3
         path: |
           artifacts/folie-windows.zip
