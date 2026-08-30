@@ -15,9 +15,9 @@ ACTIVE_PLATEFORM = ("Windows", "Linux", "OSX")
 
 
 def _load_git_version():
-    createversion_path = SOURCE_DIR / "utils" / "createversion.py"
+    createversion_path = SOURCE_DIR / "folie" / "createversion.py"
     spec = importlib.util.spec_from_file_location(
-        "kryptos_createversion", createversion_path
+        "folie_createversion", createversion_path
     )
     if spec is None or spec.loader is None:
         raise ImportError(f"Unable to load {createversion_path}")
@@ -32,7 +32,7 @@ GitVersion = _load_git_version()
 
 @dataclass(frozen=True)
 class BuildTarget:
-    name: Literal["kryptos", "kryptonite"]
+    name: Literal["folie"]
     entrypoint: Path
     windowed: bool
     hidden_imports: tuple[str, ...] = ()
@@ -59,7 +59,7 @@ class CreateApp:
 
     def update_version(self) -> bool:
         git_version = GitVersion()
-        git_version.write_to_file(str(SOURCE_DIR / "utils" / "version.py"))
+        git_version.write_to_file(str(SOURCE_DIR / "folie" / "version.py"))
         self.m_commit_number = git_version.m_commit_number
         return True
 
@@ -71,7 +71,7 @@ class CreateApp:
         try:
             for build_target in targets:
                 spec_path = self._create_spec(build_target)
-                if self.plateform == "OSX" and build_target.name == "kryptos":
+                if self.plateform == "OSX" and build_target.name == "folie":
                     self._add_macos_bundle_metadata(spec_path)
                 self._build_spec(spec_path)
         except (OSError, subprocess.CalledProcessError) as error:
@@ -82,17 +82,11 @@ class CreateApp:
 
     def _get_targets(self, target: str) -> tuple[BuildTarget, ...]:
         available_targets = {
-            "kryptos": BuildTarget(
-                name="kryptos",
-                entrypoint=SOURCE_DIR / "kryptos" / "__main__.py",
-                windowed=True,
-                hidden_imports=("wx", "wx._xml"),
-            ),
-            "kryptonite": BuildTarget(
-                name="kryptonite",
-                entrypoint=SOURCE_DIR / "kryptonite" / "__main__.py",
+            "folie": BuildTarget(
+                name="folie",
+                entrypoint=SOURCE_DIR / "folie" / "__main__.py",
                 windowed=False,
-            ),
+            )
         }
         if target == "all":
             return tuple(available_targets.values())
@@ -100,7 +94,7 @@ class CreateApp:
             return (available_targets[target],)
         except KeyError:
             raise ValueError(
-                "target must be one of 'all', 'kryptos', 'kryptonite'"
+                "target must be one of 'all', 'folie'"
             ) from None
 
     def _create_spec(self, target: BuildTarget) -> Path:
@@ -163,7 +157,7 @@ class CreateApp:
         replacement = (
             "    bundle_identifier=None,\n"
             "    info_plist={\n"
-            f"        'CFBundleShortVersionString': '1.1.{self.m_commit_number}',\n"
+            f"        'CFBundleShortVersionString': '1.0.{self.m_commit_number}',\n"
             "        'NSHumanReadableCopyright': '(c) 2026, Lucien SCHREIBER',\n"
             "        'NSHighResolutionCapable': True,\n"
             "        'NSRequiresAquaSystemAppearance': False,\n"
@@ -179,7 +173,7 @@ class CreateApp:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build the Kryptos GUI and Kryptonite CLI executables."
+        description="Build the Folie executables."
     )
     parser.add_argument(
         "plateform",
@@ -188,9 +182,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--target",
-        choices=("all", "kryptos", "kryptonite"),
+        choices=("all", "folie"),
         default="all",
-        help="executable to build (default: both)",
+        help="executable to build (default: all)",
     )
     args = parser.parse_args()
 
