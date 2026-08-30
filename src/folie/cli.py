@@ -1,76 +1,100 @@
-"""Interface en ligne de commande de Folie."""
+"""Interface en ligne de commande de Folie, construite avec Typer."""
 
 from __future__ import annotations
 
-import argparse
-import sys
 from pathlib import Path
-from typing import Sequence
+from typing import Annotated
+
+import typer
 
 from .generator import generate_html
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="folie",
-        description=(
-            "Génère une page HTML autonome et navigable décrivant le contenu "
-            "d'un répertoire."
-        ),
-    )
-    parser.add_argument("repertoire", type=Path, help="répertoire à inventorier")
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        default=Path("index_fichiers.html"),
-        help="fichier HTML à créer (défaut : index_fichiers.html)",
-    )
-    parser.add_argument(
-        "-x",
-        "--exclude",
-        action="append",
-        default=[],
-        metavar="MOTIF",
-        help=(
-            "exclut les sous-répertoires correspondants (nom ou chemin relatif, "
-            "jokers * et ? acceptés). Répéter l'option si nécessaire"
-        ),
-    )
-    parser.add_argument(
-        "--exclude-hidden",
-        action="store_true",
-        help="exclut tous les sous-répertoires cachés (nom commençant par un point)",
-    )
-    parser.add_argument(
-        "--title",
-        help="titre personnalisé de la page (défaut : nom du répertoire)",
-    )
-    return parser
+app = typer.Typer(
+    name="folie",
+    help=(
+        "Génère une page HTML autonome et navigable décrivant le contenu "
+        "d'un répertoire."
+    ),
+    no_args_is_help=True,
+    pretty_exceptions_show_locals=False,
+)
 
 
-def main(argv: Sequence[str] | None = None) -> None:
-    args = build_parser().parse_args(argv)
+@app.command()
+def generate(
+    repertoire: Annotated[
+        Path,
+        typer.Argument(
+            help="Répertoire à inventorier.",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Fichier HTML à créer.",
+            show_default=True,
+        ),
+    ] = Path("index_fichiers.html"),
+    exclude: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--exclude",
+            "-x",
+            metavar="MOTIF",
+            help=(
+                "Exclut les sous-répertoires correspondants. Les jokers * et ? "
+                "sont acceptés ; l'option peut être répétée."
+            ),
+        ),
+    ] = None,
+    exclude_hidden: Annotated[
+        bool,
+        typer.Option(
+            "--exclude-hidden",
+            help="Exclut tous les sous-répertoires cachés.",
+        ),
+    ] = False,
+    title: Annotated[
+        str | None,
+        typer.Option(
+            "--title",
+            help="Titre personnalisé de la page.",
+        ),
+    ] = None,
+) -> None:
+    """Crée l'index HTML du RÉPERTOIRE indiqué."""
     try:
         result = generate_html(
-            args.repertoire,
-            args.output,
-            exclude=args.exclude,
-            exclude_hidden=args.exclude_hidden,
-            title=args.title,
+            repertoire,
+            output,
+            exclude=exclude or (),
+            exclude_hidden=exclude_hidden,
+            title=title,
         )
     except (OSError, ValueError) as exc:
-        print(f"Erreur : {exc}", file=sys.stderr)
-        raise SystemExit(2) from exc
+        typer.echo(f"Erreur : {exc}", err=True)
+        raise typer.Exit(code=2) from exc
 
-    print(
+    typer.echo(
         f"Index créé : {result.output}\n"
         f"{result.file_count} fichier(s), {result.directory_count} dossier(s), "
         f"{result.excluded_count} dossier(s) exclu(s)."
     )
     if result.error_count:
-        print(
+        typer.echo(
             f"Attention : {result.error_count} élément(s) n'ont pas pu être lus.",
-            file=sys.stderr,
+            err=True,
         )
 
+
+def main() -> None:
+    """Point d'entrée utilisé par ``python -m folie`` et le script installé."""
+    app()
