@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from folie.generator import _human_size, generate_html
 
 
@@ -73,7 +75,20 @@ def test_existing_output_inside_source_is_not_listed(tmp_path: Path) -> None:
     assert "ancienne version" not in output.read_text(encoding="utf-8")
 
 
-def test_human_sizes() -> None:
-    assert _human_size(0) == "0 o"
-    assert _human_size(1024) == "1 Ko"
-    assert _human_size(1536) == "1,5 Ko"
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [
+        pytest.param(0, "0 o", id="zero-byte"),
+        pytest.param(1024, "1 Ko", id="one-kibibyte"),
+        pytest.param(1536, "1,5 Ko", id="decimal-kibibytes"),
+    ],
+)
+def test_human_sizes(size: int, expected: str) -> None:
+    assert _human_size(size) == expected
+
+
+def test_missing_source_is_rejected(tmp_path: Path) -> None:
+    missing_source = tmp_path / "inexistant"
+
+    with pytest.raises(ValueError, match="n'existe pas"):
+        generate_html(missing_source, tmp_path / "out.html")
