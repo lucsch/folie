@@ -1,17 +1,24 @@
 [project]
 name = "folie"
 version = "0.1.0"
-description = "Add your description here"
+description = "Générateur d'index HTML autonome pour répertoires locaux"
 readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
 
-requires-python = ">=3.14"
-dependencies = [
-    "pyinstaller>=6.22.2",
-    "typer>=0.27.2",
-]
+[project.scripts]
+folie = "folie.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "pyinstaller>=6.22.2",
     "pytest>=9.1.1",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
