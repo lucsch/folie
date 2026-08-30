@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Annotated
+from folie.version import COMMIT_NUMBER, VERSION_MAJOR_MINOR
 
 import typer
 
@@ -84,6 +85,7 @@ def generate(
         raise typer.Exit(code=2) from exc
 
     typer.echo(
+        f"Folie version : {VERSION_MAJOR_MINOR}.{COMMIT_NUMBER}\n"
         f"Index créé : {result.output}\n"
         f"{result.file_count} fichier(s), {result.directory_count} dossier(s), "
         f"{result.excluded_count} dossier(s) exclu(s)."
