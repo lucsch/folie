@@ -8,16 +8,15 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable, Iterator
 from urllib.parse import quote
 
 
 @dataclass(slots=True)
 class FileItem:
     name: str
-    path: Path
     size: int
-    modified: datetime | None
+    modified_timestamp: float | None
     category: str
     label: str
     is_symlink: bool = False
@@ -30,29 +29,40 @@ class DirectoryItem:
     directories: list["DirectoryItem"] = field(default_factory=list)
     files: list[FileItem] = field(default_factory=list)
     error: str | None = None
+    _file_count: int = field(default=0, init=False, repr=False)
+    _total_size: int = field(default=0, init=False, repr=False)
+    _directory_count: int = field(default=0, init=False, repr=False)
+    _error_count: int = field(default=0, init=False, repr=False)
 
     @property
     def descendant_file_count(self) -> int:
-        return len(self.files) + sum(
-            child.descendant_file_count for child in self.directories
-        )
+        return self._file_count
 
     @property
     def descendant_size(self) -> int:
-        return sum(item.size for item in self.files) + sum(
-            child.descendant_size for child in self.directories
-        )
+        return self._total_size
 
     @property
     def descendant_directory_count(self) -> int:
-        return len(self.directories) + sum(
-            child.descendant_directory_count for child in self.directories
-        )
+        return self._directory_count
 
     @property
     def error_count(self) -> int:
-        return int(self.error is not None) + sum(
-            child.error_count for child in self.directories
+        return self._error_count
+
+    def finalize_statistics(self) -> None:
+        """Mémorise les agrégats pour éviter de reparcourir tout l'arbre."""
+        self._file_count = len(self.files) + sum(
+            child._file_count for child in self.directories
+        )
+        self._total_size = sum(item.size for item in self.files) + sum(
+            child._total_size for child in self.directories
+        )
+        self._directory_count = len(self.directories) + sum(
+            child._directory_count for child in self.directories
+        )
+        self._error_count = int(self.error is not None) + sum(
+            child._error_count for child in self.directories
         )
 
 
@@ -63,6 +73,53 @@ class GenerationResult:
     directory_count: int
     excluded_count: int
     error_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ScanProgress:
+    """Instantané de progression transmis pendant la génération."""
+
+    phase: str
+    entries_scanned: int
+    files_scanned: int
+    directories_scanned: int
+    bytes_scanned: int
+    current_path: Path
+
+
+ProgressCallback = Callable[[ScanProgress], None]
+
+
+@dataclass(slots=True)
+class _ScanState:
+    callback: ProgressCallback | None
+    report_every: int
+    entries_scanned: int = 0
+    files_scanned: int = 0
+    directories_scanned: int = 0
+    bytes_scanned: int = 0
+
+    def notify(
+        self,
+        current_path: Path,
+        *,
+        phase: str = "scan",
+        force: bool = False,
+    ) -> None:
+        if self.callback is None:
+            return
+        if not force and self.entries_scanned % self.report_every:
+            return
+        self.callback(
+            ScanProgress(
+                phase=phase,
+                entries_scanned=self.entries_scanned,
+                files_scanned=self.files_scanned,
+                directories_scanned=self.directories_scanned,
+                bytes_scanned=self.bytes_scanned,
+                current_path=current_path,
+            )
+        )
 
 
 _FILE_TYPES: dict[str, tuple[str, str]] = {
@@ -141,69 +198,82 @@ def _scan_directory(
     exclude_hidden: bool,
     ignored_file: Path,
     excluded_counter: list[int],
+    state: _ScanState,
+    sort_entries: bool,
 ) -> DirectoryItem:
     directory = DirectoryItem(name=path.name or str(path), path=path)
+    child_paths: list[Path] = []
     try:
         with os.scandir(path) as scanner:
-            entries = sorted(scanner, key=lambda item: item.name.casefold())
+            for entry in scanner:
+                entry_path = Path(entry.path)
+                state.entries_scanned += 1
+                try:
+                    is_symlink = entry.is_symlink()
+                    is_directory = entry.is_dir(follow_symlinks=False)
+                except OSError:
+                    is_symlink = False
+                    is_directory = False
+
+                if is_directory:
+                    state.directories_scanned += 1
+                    relative = entry_path.relative_to(root)
+                    if (
+                        exclude_hidden and entry.name.startswith(".")
+                    ) or _matches_exclusion(relative, patterns):
+                        excluded_counter[0] += 1
+                    else:
+                        child_paths.append(entry_path)
+                    state.notify(entry_path)
+                    continue
+
+                # Les deux chemins sont déjà absolus : aucune résolution disque
+                # n'est nécessaire pour ignorer une ancienne sortie.
+                if entry_path == ignored_file:
+                    state.notify(entry_path)
+                    continue
+
+                try:
+                    stat = entry.stat(follow_symlinks=False)
+                    size = stat.st_size
+                    modified_timestamp = stat.st_mtime
+                except OSError:
+                    size = 0
+                    modified_timestamp = None
+                category, label = _file_type(entry_path, is_symlink)
+                directory.files.append(
+                    FileItem(
+                        name=entry.name,
+                        size=size,
+                        modified_timestamp=modified_timestamp,
+                        category=category,
+                        label=label,
+                        is_symlink=is_symlink,
+                    )
+                )
+                state.files_scanned += 1
+                state.bytes_scanned += size
+                state.notify(entry_path)
     except OSError as exc:
         directory.error = str(exc)
-        return directory
 
-    for entry in entries:
-        entry_path = Path(entry.path)
-        relative = entry_path.relative_to(root)
-        try:
-            is_symlink = entry.is_symlink()
-            is_directory = entry.is_dir(follow_symlinks=False)
-        except OSError:
-            is_symlink = False
-            is_directory = False
-
-        if is_directory:
-            if (exclude_hidden and entry.name.startswith(".")) or _matches_exclusion(
-                relative, patterns
-            ):
-                excluded_counter[0] += 1
-                continue
-            directory.directories.append(
-                _scan_directory(
-                    entry_path,
-                    root,
-                    patterns,
-                    exclude_hidden,
-                    ignored_file,
-                    excluded_counter,
-                )
-            )
-            continue
-
-        # Un ancien fichier de sortie placé dans l'arbre ne doit pas s'auto-indexer.
-        try:
-            if entry_path.resolve() == ignored_file:
-                continue
-        except OSError:
-            pass
-
-        try:
-            stat = entry.stat(follow_symlinks=False)
-            size = stat.st_size
-            modified = datetime.fromtimestamp(stat.st_mtime).astimezone()
-        except OSError:
-            size = 0
-            modified = None
-        category, label = _file_type(entry_path, is_symlink)
-        directory.files.append(
-            FileItem(
-                name=entry.name,
-                path=entry_path.absolute(),
-                size=size,
-                modified=modified,
-                category=category,
-                label=label,
-                is_symlink=is_symlink,
+    if sort_entries:
+        directory.files.sort(key=lambda item: item.name.casefold())
+        child_paths.sort(key=lambda item: item.name.casefold())
+    for child_path in child_paths:
+        directory.directories.append(
+            _scan_directory(
+                child_path,
+                root,
+                patterns,
+                exclude_hidden,
+                ignored_file,
+                excluded_counter,
+                state,
+                sort_entries,
             )
         )
+    directory.finalize_statistics()
     return directory
 
 
@@ -223,20 +293,22 @@ def _human_size(size: int) -> str:
 def _file_uri(path: Path) -> str:
     """Produit une URI file: en conservant correctement les caractères spéciaux."""
     try:
-        return path.resolve().as_uri()
-    except (OSError, ValueError):
-        return "file://" + quote(str(path.absolute()))
+        return path.as_uri()
+    except ValueError:
+        return "file://" + quote(str(path))
 
 
-def _render_file(item: FileItem) -> str:
+def _render_file(item: FileItem, directory_path: Path) -> str:
+    path = directory_path / item.name
     escaped_name = html.escape(item.name)
-    escaped_path = html.escape(str(item.path))
-    escaped_uri = html.escape(_file_uri(item.path), quote=True)
-    if item.modified is None:
+    escaped_path = html.escape(str(path))
+    escaped_uri = html.escape(_file_uri(path), quote=True)
+    if item.modified_timestamp is None:
         modified_html = '<span class="muted">Indisponible</span>'
     else:
-        machine_date = item.modified.isoformat(timespec="seconds")
-        display_date = item.modified.strftime("%d.%m.%Y %H:%M:%S")
+        modified = datetime.fromtimestamp(item.modified_timestamp).astimezone()
+        machine_date = modified.isoformat(timespec="seconds")
+        display_date = modified.strftime("%d.%m.%Y %H:%M:%S")
         modified_html = (
             f'<time datetime="{html.escape(machine_date, quote=True)}">'
             f"{html.escape(display_date)}</time>"
@@ -256,7 +328,8 @@ def _render_file(item: FileItem) -> str:
 </a>"""
 
 
-def _render_directory(item: DirectoryItem, depth: int = 0) -> str:
+def _iter_render_directory(item: DirectoryItem, depth: int = 0) -> Iterator[str]:
+    """Produit le HTML progressivement afin de plafonner la mémoire utilisée."""
     count = item.descendant_file_count
     folder_word = "fichier" if count == 1 else "fichiers"
     open_attribute = " open" if depth == 0 else ""
@@ -278,27 +351,26 @@ def _render_directory(item: DirectoryItem, depth: int = 0) -> str:
         "</summary>",
         '<div class="directory-children">',
     ]
+    yield "\n".join(parts)
     if item.error:
-        parts.append(
+        yield (
             '<div class="error-row" role="alert">⚠ Impossible de lire ce dossier : '
             f"{html.escape(item.error)}</div>"
         )
-    parts.extend(_render_directory(child, depth + 1) for child in item.directories)
-    parts.extend(_render_file(file_item) for file_item in item.files)
+    for child in item.directories:
+        yield from _iter_render_directory(child, depth + 1)
+    for file_item in item.files:
+        yield _render_file(file_item, item.path)
     if not item.directories and not item.files and not item.error:
-        parts.append('<div class="empty-row">Dossier vide</div>')
-    parts.extend(("</div>", "</details>"))
-    return "\n".join(parts)
+        yield '<div class="empty-row">Dossier vide</div>'
+    yield "</div>\n</details>"
 
 
-def _render_page(root: DirectoryItem, title: str, excluded_count: int) -> str:
-    generated_at = datetime.now().astimezone()
+def _render_page_start(root: DirectoryItem, title: str) -> str:
     file_count = root.descendant_file_count
     directory_count = root.descendant_directory_count
-    tree_html = _render_directory(root)
     escaped_title = html.escape(title)
     escaped_root = html.escape(str(root.path))
-    generated_text = generated_at.strftime("%d.%m.%Y à %H:%M:%S")
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -388,7 +460,12 @@ footer {{ color:var(--muted); margin:14px 3px; font-size:12px; }}
   </div>
   <section class="tree-card" aria-label="Arborescence des fichiers">
     <div class="columns" aria-hidden="true"><span>Nom</span><span>Taille</span><span class="date-heading">Dernière modification</span><span class="path-heading">Chemin complet</span><span></span></div>
-    {tree_html}
+"""
+
+
+def _render_page_end(excluded_count: int) -> str:
+    generated_text = datetime.now().astimezone().strftime("%d.%m.%Y à %H:%M:%S")
+    return f"""
   </section>
   <footer>Inventaire généré le {generated_text}. {excluded_count} dossier(s) exclu(s). Les fichiers s’ouvrent selon les réglages de votre navigateur et de votre système.</footer>
 </main>
@@ -429,6 +506,29 @@ footer {{ color:var(--muted); margin:14px 3px; font-size:12px; }}
 """
 
 
+def _write_page(
+    output: Path,
+    root: DirectoryItem,
+    title: str,
+    excluded_count: int,
+) -> None:
+    """Écrit par lots d'environ 1 Mio, sans construire tout le HTML en mémoire."""
+    batch: list[str] = []
+    batch_size = 0
+    with output.open("w", encoding="utf-8", buffering=1024 * 1024) as stream:
+        stream.write(_render_page_start(root, title))
+        for chunk in _iter_render_directory(root):
+            batch.append(chunk)
+            batch_size += len(chunk)
+            if batch_size >= 1024 * 1024:
+                stream.write("\n".join(batch))
+                batch.clear()
+                batch_size = 0
+        if batch:
+            stream.write("\n".join(batch))
+        stream.write(_render_page_end(excluded_count))
+
+
 def generate_html(
     source: str | Path,
     output: str | Path = "index_fichiers.html",
@@ -436,13 +536,21 @@ def generate_html(
     exclude: Iterable[str] = (),
     exclude_hidden: bool = False,
     title: str | None = None,
+    progress_callback: ProgressCallback | None = None,
+    progress_interval: int = 250,
+    sort_entries: bool = True,
 ) -> GenerationResult:
     """Génère un index HTML autonome à partir de ``source``.
 
     Les motifs sans séparateur correspondent au nom d'un dossier à n'importe quel
     niveau. Ceux contenant ``/`` correspondent à son chemin relatif à ``source``.
     Les liens symboliques ne sont jamais suivis, ce qui évite les parcours cycliques.
+    ``progress_callback`` reçoit périodiquement un :class:`ScanProgress` ; la
+    fréquence peut être ajustée avec ``progress_interval``.
     """
+    if progress_interval < 1:
+        raise ValueError("progress_interval doit être supérieur ou égal à 1")
+
     source_path = Path(source).expanduser().resolve()
     if not source_path.exists():
         raise ValueError(f"le répertoire n'existe pas : {source_path}")
@@ -455,6 +563,8 @@ def generate_html(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     excluded_counter = [0]
+    state = _ScanState(progress_callback, progress_interval)
+    state.notify(source_path, force=True)
     root = _scan_directory(
         source_path,
         source_path,
@@ -462,10 +572,13 @@ def generate_html(
         exclude_hidden,
         output_path,
         excluded_counter,
+        state,
+        sort_entries,
     )
     page_title = title or source_path.name or str(source_path)
-    rendered = _render_page(root, page_title, excluded_counter[0])
-    output_path.write_text(rendered, encoding="utf-8")
+    state.notify(output_path, phase="write", force=True)
+    _write_page(output_path, root, page_title, excluded_counter[0])
+    state.notify(output_path, phase="done", force=True)
 
     return GenerationResult(
         output=output_path,

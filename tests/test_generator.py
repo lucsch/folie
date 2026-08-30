@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from folie.generator import _human_size, generate_html
+from folie.generator import ScanProgress, _human_size, generate_html
 
 
 def test_generate_autonomous_html_with_metadata_and_escaped_names(tmp_path: Path) -> None:
@@ -92,3 +92,26 @@ def test_missing_source_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="n'existe pas"):
         generate_html(missing_source, tmp_path / "out.html")
+
+
+def test_reports_scan_and_write_progress(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    nested = source / "documents"
+    nested.mkdir(parents=True)
+    (source / "premier.txt").write_text("1", encoding="utf-8")
+    (nested / "second.pdf").write_text("22", encoding="utf-8")
+    events: list[ScanProgress] = []
+
+    generate_html(
+        source,
+        tmp_path / "out.html",
+        progress_callback=events.append,
+        progress_interval=1,
+        sort_entries=False,
+    )
+
+    assert events[0].phase == "scan"
+    assert {event.phase for event in events} == {"scan", "write", "done"}
+    assert events[-1].files_scanned == 2
+    assert events[-1].directories_scanned == 1
+    assert events[-1].bytes_scanned == 3

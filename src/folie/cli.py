@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Annotated
-from folie.version import COMMIT_NUMBER, VERSION_MAJOR_MINOR
 
 import typer
+from rich.console import Console
+from rich.markup import escape
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
-from .generator import generate_html
+from folie.version import COMMIT_NUMBER, VERSION_MAJOR_MINOR
+
+from .generator import ScanProgress, generate_html
 
 
 app = typer.Typer(
@@ -70,16 +74,73 @@ def generate(
             help="Titre personnalisé de la page.",
         ),
     ] = None,
+    show_progress: Annotated[
+        bool,
+        typer.Option(
+            "--progress/--no-progress",
+            help="Affiche ou masque la progression du parcours.",
+        ),
+    ] = True,
+    sort_entries: Annotated[
+        bool,
+        typer.Option(
+            "--sort/--no-sort",
+            help="Trie les entrées ; --no-sort accélère les très gros dossiers.",
+        ),
+    ] = True,
 ) -> None:
     """Crée l'index HTML du RÉPERTOIRE indiqué."""
-    try:
-        result = generate_html(
-            repertoire,
-            output,
-            exclude=exclude or (),
-            exclude_hidden=exclude_hidden,
-            title=title,
+    progress_console = Console(stderr=True)
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TextColumn("• {task.fields[stats]}"),
+        TextColumn("• [dim]{task.fields[current]}[/dim]"),
+        TimeElapsedColumn(),
+        console=progress_console,
+        transient=False,
+        disable=not show_progress,
+        refresh_per_second=10,
+    )
+
+    def update_progress(status: ScanProgress) -> None:
+        descriptions = {
+            "scan": "Parcours en cours",
+            "write": "Écriture du HTML",
+            "done": "Terminé",
+        }
+        current = str(status.current_path)
+        if len(current) > 80:
+            current = f"…{current[-79:]}"
+        files_count = f"{status.files_scanned:,}".replace(",", " ")
+        directories_count = f"{status.directories_scanned:,}".replace(",", " ")
+        stats = f"{files_count} fichiers, {directories_count} dossiers vus"
+        progress.update(
+            progress_task,
+            description=descriptions[status.phase],
+            stats=stats,
+            current=escape(current),
         )
+        if status.phase == "done":
+            progress.update(progress_task, total=1, completed=1)
+
+    try:
+        with progress:
+            progress_task = progress.add_task(
+                "Initialisation",
+                total=None,
+                stats="0 fichier, 0 dossier vu",
+                current=escape(str(repertoire)),
+            )
+            result = generate_html(
+                repertoire,
+                output,
+                exclude=exclude or (),
+                exclude_hidden=exclude_hidden,
+                title=title,
+                progress_callback=update_progress,
+                sort_entries=sort_entries,
+            )
     except (OSError, ValueError) as exc:
         typer.echo(f"Erreur : {exc}", err=True)
         raise typer.Exit(code=2) from exc

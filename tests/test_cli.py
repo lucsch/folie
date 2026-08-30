@@ -37,6 +37,7 @@ def test_cli_generates_index_and_accepts_repeated_exclusions(tmp_path: Path) -> 
     assert result.exit_code == 0, result.output
     assert "1 fichier(s)" in result.output
     assert "1 dossier(s) exclu(s)" in result.output
+    assert "•" in result.output
     assert output.exists()
     page = output.read_text(encoding="utf-8")
     assert "Documents partagés" in page
@@ -52,3 +53,23 @@ def test_cli_rejects_a_file_as_source(tmp_path: Path) -> None:
 
     assert result.exit_code == 2
     assert "directory" in result.output.lower()
+
+
+def test_cli_can_disable_progress(tmp_path: Path) -> None:
+    source = tmp_path / "documents"
+    source.mkdir()
+    (source / "note.txt").write_text("note", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            str(source),
+            "--output",
+            str(tmp_path / "out.html"),
+            "--no-progress",
+            "--no-sort",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Parcours en cours" not in result.output

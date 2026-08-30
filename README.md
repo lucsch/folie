@@ -13,6 +13,7 @@ La page propose :
   fichier ;
 - l'ouverture du fichier en cliquant sur sa ligne ;
 - une recherche instantanée et des commandes pour tout déplier ou replier ;
+- un indicateur de progression pendant le parcours et l'écriture ;
 - un thème clair ou sombre suivant les préférences du système.
 
 ## Utilisation
@@ -47,6 +48,21 @@ Pour ignorer tous les sous-répertoires cachés :
 
 ```bash
 folie ./documents --exclude-hidden
+```
+
+La progression affiche le nombre de fichiers et de dossiers déjà rencontrés,
+ainsi que le chemin courant. Elle peut être masquée pour une utilisation dans un
+script :
+
+```bash
+folie ./documents --no-progress
+```
+
+Pour privilégier la vitesse maximale sur un dossier contenant plusieurs centaines
+de milliers d'entrées, le tri alphabétique peut également être désactivé :
+
+```bash
+folie ./documents --no-sort
 ```
 
 Options disponibles :
