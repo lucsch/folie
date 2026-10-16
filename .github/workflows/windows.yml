@@ -30,16 +30,16 @@ jobs:
       run: uv python install 3.14
 
     - name: Install dependencies
-      run: uv sync --no-dev
+      run: uv sync --group dev --extra gui
 
     - name: Build app
-      run: uv run python install/createapp.py Windows
+      run: uv run --extra gui python tools/createapp.py Windows
 
     - name: Package app
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force artifacts
-        Compress-Archive -Path bin/dist/* -DestinationPath artifacts/folie-windows.zip -Force
+        Compress-Archive -Path dist/* -DestinationPath artifacts/folie-windows.zip -Force
 
     - name: Upload workflow artifact
       uses: actions/upload-artifact@v7

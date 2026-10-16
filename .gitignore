@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 _local
-src/folie/version.py
+src/folie/_build_version.py
 
 # Distribution / packaging
 .Python
@@ -34,6 +34,7 @@ MANIFEST
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+!packaging/*.spec
 
 # Installer logs
 pip-log.txt

@@ -42,7 +42,7 @@ jobs:
           uv sync --group dev
 
       - name: Create the version file
-        run: uv run python src/folie/createversion.py version.py
+        run: uv run python tools/createversion.py
 
       #- name: Run ruff
       #  run: uv run --no-sync ruff check .

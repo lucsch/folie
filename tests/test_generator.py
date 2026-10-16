@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from folie.generator import ScanProgress, _human_size, generate_html
+from folie.core.generator import ScanProgress, _human_size, generate_html
 
 
 def test_directory_copy_paths_preserve_original_characters(tmp_path: Path) -> None:

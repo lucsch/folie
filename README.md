@@ -83,3 +83,71 @@ folie --help
 ```bash
 uv run pytest
 ```
+
+## Interface graphique WinFolie
+
+Installez la dépendance graphique optionnelle, puis lancez WinFolie :
+
+```bash
+uv sync --extra gui
+uv run --extra gui winfolie
+```
+
+Avec pip : `pip install ".[gui]"`, puis `winfolie`.
+La CLI reste utilisable sans wxPython. Sous Linux, l'installation de wxPython
+peut nécessiter les bibliothèques de développement GTK et une compilation locale.
+
+La fenêtre permet de choisir le répertoire source et le fichier HTML de sortie,
+le titre, les motifs d'exclusion (un par ligne), l'exclusion des dossiers cachés,
+le tri et l'affichage de la progression. La génération s'effectue en arrière-plan.
+Le bouton « Ouvrir l’inventaire » affiche ensuite le résultat dans le navigateur.
+
+Les commandes `python -m folie` et `python -m folie.gui` lancent respectivement
+la CLI et la GUI dans un environnement où le projet est installé.
+
+## Organisation du code
+
+```text
+src/folie/
+├── __main__.py          # Entrée CLI
+├── version.py           # Version commune, utilisable sans Git
+├── core/generator.py    # Parcours et génération HTML partagés
+├── cli/main.py          # Interface Typer / Rich
+└── gui/
+    ├── __main__.py      # Entrée GUI
+    ├── app.py           # Application wxPython
+    ├── main_window.py   # Fenêtre principale
+    └── worker.py        # Génération en arrière-plan
+
+tools/                  # Scripts de version et de construction
+packaging/              # Configurations PyInstaller
+tests/                 # Tests du moteur, de la CLI et du worker
+```
+
+Le moteur ne dépend d'aucune interface. L'API Python reste disponible via
+`from folie import generate_html`. Son module est désormais
+`folie.core.generator`.
+
+## Construction des exécutables
+
+Sur la plateforme cible (Windows, Linux ou OSX) :
+
+```bash
+uv sync --group dev --extra gui
+uv run --extra gui python tools/createapp.py Windows
+```
+
+Les deux programmes sont produits dans `dist/folie/` et `dist/winfolie/`.
+Utilisez `--target folie` ou `--target winfolie` pour construire un seul programme.
+La construction de la CLI seule ne nécessite pas l'extra `gui`.
+Les configurations se trouvent dans `packaging/folie.spec` et
+`packaging/winfolie.spec` ; WinFolie est construit sans console sous Windows.
+
+Le script de construction génère automatiquement `src/folie/_build_version.py`
+avec les informations Git communes. Pour les actualiser séparément :
+
+```bash
+uv run python tools/createversion.py
+```
+
+Ce fichier est ignoré par Git. Sans lui, `version.py` fournit la version de base.

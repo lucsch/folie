@@ -10,7 +10,16 @@ dependencies = [
 ]
 
 [project.scripts]
-folie = "folie.cli:main"
+folie = "folie.cli.main:main"
+
+[project.gui-scripts]
+winfolie = "folie.gui.app:main"
+
+[project.optional-dependencies]
+gui = ["wxPython>=4.2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/folie"]
 
 [build-system]
 requires = ["hatchling"]

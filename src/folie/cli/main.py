@@ -12,7 +12,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from folie.version import COMMIT_NUMBER, VERSION_MAJOR_MINOR
 
-from .generator import ScanProgress, generate_html
+from folie.core.generator import ScanProgress, generate_html
 
 
 app = typer.Typer(
