@@ -50,6 +50,7 @@ def test_generate_autonomous_html_with_metadata_and_escaped_names(tmp_path: Path
     assert 'class="file-icon type-image"' in page
     assert "<script>" in page
     assert "http://" not in page and "https://" not in page
+    assert "Aucun dossier exclu." in page
 
 
 def test_excludes_directories_by_name_path_glob_and_hidden_flag(tmp_path: Path) -> None:
@@ -80,6 +81,19 @@ def test_excludes_directories_by_name_path_glob_and_hidden_flag(tmp_path: Path) 
     assert "package.js" not in page
     assert "old.pdf" not in page
     assert "secret.txt" not in page
+    assert "Dossiers exclus (3)" in page
+    for relative in (".private", "archive/2024", "node_modules"):
+        assert f"<li><code>{Path(relative)}</code></li>" in page
+
+
+def test_excluded_directory_names_are_escaped(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    (source / "Été & archives").mkdir(parents=True)
+    result = generate_html(source, tmp_path / "out.html", exclude=["Été & archives"])
+    page = result.output.read_text(encoding="utf-8")
+
+    assert result.excluded_count == 1
+    assert "<li><code>Été &amp; archives</code></li>" in page
 
 
 def test_existing_output_inside_source_is_not_listed(tmp_path: Path) -> None:

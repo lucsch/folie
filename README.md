@@ -15,6 +15,7 @@ La page propose :
 - la copie du chemin absolu d'un dossier via l'icône ⧉, avec les espaces et
   caractères d'origine (sans encodage URL tel que `%20`) ;
 - une recherche instantanée et des commandes pour tout déplier ou replier ;
+- une liste repliable des dossiers exclus, avec leurs chemins relatifs ;
 - un indicateur de progression pendant le parcours et l'écriture ;
 - un thème clair ou sombre suivant les préférences du système.
 

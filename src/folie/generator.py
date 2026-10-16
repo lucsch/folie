@@ -198,7 +198,7 @@ def _scan_directory(
     patterns: tuple[str, ...],
     exclude_hidden: bool,
     ignored_file: Path,
-    excluded_counter: list[int],
+    excluded_directories: list[Path],
     state: _ScanState,
     sort_entries: bool,
 ) -> DirectoryItem:
@@ -222,7 +222,7 @@ def _scan_directory(
                     if (
                         exclude_hidden and entry.name.startswith(".")
                     ) or _matches_exclusion(relative, patterns):
-                        excluded_counter[0] += 1
+                        excluded_directories.append(relative)
                     else:
                         child_paths.append(entry_path)
                     state.notify(entry_path)
@@ -269,7 +269,7 @@ def _scan_directory(
                 patterns,
                 exclude_hidden,
                 ignored_file,
-                excluded_counter,
+                excluded_directories,
                 state,
                 sort_entries,
             )
@@ -436,6 +436,11 @@ details[open] > summary .chevron {{ transform:rotate(45deg); }}
 .copy-status {{ min-height:1.45em; color:var(--muted); margin:8px 3px; }}
 .empty-row,.error-row {{ padding:12px 18px 12px 52px; border-bottom:1px solid var(--line); font-style:italic; }} .error-row{{color:#d04444}}
 .search-hidden {{ display:none !important; }}
+.exclusions {{ margin:14px 3px; padding:12px 16px; background:var(--panel); border:1px solid var(--line); border-radius:10px; }}
+.exclusions summary {{ cursor:pointer; font-weight:650; }}
+.exclusions p {{ color:var(--muted); }}
+.exclusions ul {{ max-height:260px; overflow:auto; padding-left:24px; }}
+.exclusions li {{ margin:4px 0; overflow-wrap:anywhere; }}
 footer {{ color:var(--muted); margin:14px 3px; font-size:12px; }}
 @media (max-width:900px) {{
   .columns,.tree-row {{ grid-template-columns:minmax(220px,1fr) 90px 155px 28px; }}
@@ -469,12 +474,28 @@ footer {{ color:var(--muted); margin:14px 3px; font-size:12px; }}
 """
 
 
-def _render_page_end(excluded_count: int) -> str:
+def _render_page_end(excluded_directories: list[Path]) -> str:
+    excluded_count = len(excluded_directories)
+    if excluded_directories:
+        entries = "".join(
+            f"<li><code>{html.escape(str(path))}</code></li>"
+            for path in excluded_directories
+        )
+        exclusions_html = (
+            '<details class="exclusions">'
+            f"<summary>Dossiers exclus ({excluded_count})</summary>"
+            "<p>Chemins relatifs au répertoire inventorié. "
+            "Le contenu de ces dossiers n’a pas été parcouru.</p>"
+            f"<ul>{entries}</ul></details>"
+        )
+    else:
+        exclusions_html = '<p class="exclusions muted">Aucun dossier exclu.</p>'
     generated_text = datetime.now().astimezone().strftime("%d.%m.%Y à %H:%M:%S")
     return f"""
   </section>
   <div id="copy-status" class="copy-status" role="status" aria-live="polite"></div>
-  <footer>Inventaire généré par Folie v{VERSION_MAJOR_MINOR}.{COMMIT_NUMBER} le {generated_text}. {excluded_count} dossier(s) exclu(s). Les fichiers s’ouvrent selon les réglages de votre navigateur et de votre système.</footer>
+  {exclusions_html}
+  <footer>Inventaire généré par Folie v{VERSION_MAJOR_MINOR}.{COMMIT_NUMBER} le {generated_text}. Les fichiers s’ouvrent selon les réglages de votre navigateur et de votre système.</footer>
 </main>
 <script>
 (() => {{
@@ -551,7 +572,7 @@ def _write_page(
     output: Path,
     root: DirectoryItem,
     title: str,
-    excluded_count: int,
+    excluded_directories: list[Path],
 ) -> None:
     """Écrit par lots d'environ 1 Mio, sans construire tout le HTML en mémoire."""
     batch: list[str] = []
@@ -567,7 +588,7 @@ def _write_page(
                 batch_size = 0
         if batch:
             stream.write("\n".join(batch))
-        stream.write(_render_page_end(excluded_count))
+        stream.write(_render_page_end(excluded_directories))
 
 
 def generate_html(
@@ -603,7 +624,7 @@ def generate_html(
         raise ValueError(f"la sortie désigne un répertoire : {output_path}")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    excluded_counter = [0]
+    excluded_directories: list[Path] = []
     state = _ScanState(progress_callback, progress_interval)
     state.notify(source_path, force=True)
     root = _scan_directory(
@@ -612,19 +633,21 @@ def generate_html(
         tuple(exclude),
         exclude_hidden,
         output_path,
-        excluded_counter,
+        excluded_directories,
         state,
         sort_entries,
     )
     page_title = title or source_path.name or str(source_path)
     state.notify(output_path, phase="write", force=True)
-    _write_page(output_path, root, page_title, excluded_counter[0])
+    if sort_entries:
+        excluded_directories.sort(key=lambda path: str(path).casefold())
+    _write_page(output_path, root, page_title, excluded_directories)
     state.notify(output_path, phase="done", force=True)
 
     return GenerationResult(
         output=output_path,
         file_count=root.descendant_file_count,
         directory_count=root.descendant_directory_count,
-        excluded_count=excluded_counter[0],
+        excluded_count=len(excluded_directories),
         error_count=root.error_count,
     )
