@@ -1,10 +1,30 @@
 from __future__ import annotations
 
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
 
 from folie.generator import ScanProgress, _human_size, generate_html
+
+
+def test_directory_copy_paths_preserve_original_characters(tmp_path: Path) -> None:
+    source = tmp_path / "Mes documents"
+    nested = source / "Été & bilan '100%20'"
+    nested.mkdir(parents=True)
+    output = tmp_path / "inventaire.html"
+    generate_html(source, output)
+    paths: list[str] = []
+
+    class CopyButtonParser(HTMLParser):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            attributes = dict(attrs)
+            if tag == "button" and "data-path" in attributes:
+                paths.append(attributes["data-path"])
+
+    CopyButtonParser().feed(output.read_text(encoding="utf-8"))
+
+    assert paths == [str(source.resolve()), str(nested.resolve())]
 
 
 def test_generate_autonomous_html_with_metadata_and_escaped_names(tmp_path: Path) -> None:

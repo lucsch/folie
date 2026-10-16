@@ -347,7 +347,9 @@ def _iter_render_directory(item: DirectoryItem, depth: int = 0) -> Iterator[str]
         f'<span class="size-cell">{_human_size(item.descendant_size)}</span>',
         '<span class="date-cell muted">—</span>',
         f'<span class="path-cell" title="{escaped_path}">{escaped_path}</span>',
-        '<span class="open-cell"></span>',
+        f'<button type="button" class="open-cell copy-path" data-path="{escaped_path}" '
+        f'title="Copier le chemin du dossier" aria-label="Copier le chemin de {escaped_name}">'
+        '<span aria-hidden="true">⧉</span></button>',
         "</summary>",
         '<div class="directory-children">',
     ]
@@ -428,6 +430,9 @@ details[open] > summary .chevron {{ transform:rotate(45deg); }}
 .size-cell,.date-cell {{ white-space:nowrap; font-variant-numeric:tabular-nums; }}
 .path-cell {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; font-size:12px; }}
 .open-cell {{ color:var(--accent); font-size:17px; text-align:center; }} .muted,.empty-row {{ color:var(--muted); }}
+.copy-path {{ padding:0; border:0; border-radius:4px; background:transparent; }}
+.copy-path:focus-visible {{ outline:2px solid var(--accent); outline-offset:3px; }}
+.copy-status {{ min-height:1.45em; color:var(--muted); margin:8px 3px; }}
 .empty-row,.error-row {{ padding:12px 18px 12px 52px; border-bottom:1px solid var(--line); font-style:italic; }} .error-row{{color:#d04444}}
 .search-hidden {{ display:none !important; }}
 footer {{ color:var(--muted); margin:14px 3px; font-size:12px; }}
@@ -467,6 +472,7 @@ def _render_page_end(excluded_count: int) -> str:
     generated_text = datetime.now().astimezone().strftime("%d.%m.%Y à %H:%M:%S")
     return f"""
   </section>
+  <div id="copy-status" class="copy-status" role="status" aria-live="polite"></div>
   <footer>Inventaire généré le {generated_text}. {excluded_count} dossier(s) exclu(s). Les fichiers s’ouvrent selon les réglages de votre navigateur et de votre système.</footer>
 </main>
 <script>
@@ -479,6 +485,40 @@ def _render_page_end(excluded_count: int) -> str:
 
   document.getElementById('expand').addEventListener('click', () => directories.forEach(item => item.open = true));
   document.getElementById('collapse').addEventListener('click', () => directories.forEach((item, index) => item.open = index === 0));
+
+  const copyStatus = document.getElementById('copy-status');
+  const copyWithSelection = path => {{
+    const previousFocus = document.activeElement;
+    const field = document.createElement('textarea');
+    field.value = path;
+    field.readOnly = true;
+    field.style.cssText = 'position:fixed;top:0;left:-9999px';
+    document.body.appendChild(field);
+    try {{
+      field.select();
+      return document.execCommand('copy');
+    }} finally {{
+      field.remove();
+      previousFocus?.focus({{preventScroll: true}});
+    }}
+  }};
+
+  document.querySelector('.tree-card').addEventListener('click', async event => {{
+    const button = event.target.closest('.copy-path');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const path = button.dataset.path;
+    let copied = false;
+    try {{
+      await navigator.clipboard.writeText(path);
+      copied = true;
+    }} catch {{
+      try {{ copied = copyWithSelection(path); }} catch {{ /* Copie indisponible. */ }}
+    }}
+    copyStatus.textContent = copied ? 'Chemin copié : ' + path : 'Copie automatique indisponible.';
+    if (!copied) window.prompt('Copiez le chemin du dossier :', path);
+  }});
 
   search.addEventListener('input', () => {{
     const query = normalize(search.value.trim());

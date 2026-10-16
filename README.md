@@ -12,6 +12,8 @@ La page propose :
 - la taille, la date de dernière modification et le chemin absolu de chaque
   fichier ;
 - l'ouverture du fichier en cliquant sur sa ligne ;
+- la copie du chemin absolu d'un dossier via l'icône ⧉, avec les espaces et
+  caractères d'origine (sans encodage URL tel que `%20`) ;
 - une recherche instantanée et des commandes pour tout déplier ou replier ;
 - un indicateur de progression pendant le parcours et l'écriture ;
 - un thème clair ou sombre suivant les préférences du système.
