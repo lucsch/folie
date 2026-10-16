@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Iterable, Iterator
 from urllib.parse import quote
+from folie.version import VERSION_MAJOR_MINOR, COMMIT_NUMBER
 
 
 @dataclass(slots=True)
@@ -473,7 +474,7 @@ def _render_page_end(excluded_count: int) -> str:
     return f"""
   </section>
   <div id="copy-status" class="copy-status" role="status" aria-live="polite"></div>
-  <footer>Inventaire généré le {generated_text}. {excluded_count} dossier(s) exclu(s). Les fichiers s’ouvrent selon les réglages de votre navigateur et de votre système.</footer>
+  <footer>Inventaire généré par Folie v{VERSION_MAJOR_MINOR}.{COMMIT_NUMBER} le {generated_text}. {excluded_count} dossier(s) exclu(s). Les fichiers s’ouvrent selon les réglages de votre navigateur et de votre système.</footer>
 </main>
 <script>
 (() => {{
