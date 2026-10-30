@@ -27,8 +27,10 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "black>=26.10.1",
     "pyinstaller==6.22.3",
     "pytest==9.2.0",
+    "ruff>=0.17.3",
 ]
 
 [tool.pytest.ini_options]

@@ -10,10 +10,8 @@ from rich.console import Console
 from rich.markup import escape
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
-from folie.version import COMMIT_NUMBER, VERSION_MAJOR_MINOR
-
 from folie.core.generator import ScanProgress, generate_html
-
+from folie.version import COMMIT_NUMBER, VERSION_MAJOR_MINOR
 
 app = typer.Typer(
     name="folie",

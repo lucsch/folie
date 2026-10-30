@@ -5,12 +5,13 @@ from __future__ import annotations
 import fnmatch
 import html
 import os
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Iterable, Iterator
 from urllib.parse import quote
-from folie.version import VERSION_MAJOR_MINOR, COMMIT_NUMBER
+
+from folie.version import COMMIT_NUMBER, VERSION_MAJOR_MINOR
 
 
 @dataclass(slots=True)
@@ -27,7 +28,7 @@ class FileItem:
 class DirectoryItem:
     name: str
     path: Path
-    directories: list["DirectoryItem"] = field(default_factory=list)
+    directories: list[DirectoryItem] = field(default_factory=list)
     files: list[FileItem] = field(default_factory=list)
     error: str | None = None
     _file_count: int = field(default=0, init=False, repr=False)
@@ -181,8 +182,7 @@ def _matches_exclusion(relative: Path, patterns: tuple[str, ...]) -> bool:
     name = relative.name
     for original_pattern in patterns:
         pattern = original_pattern.strip().replace("\\", "/")
-        if pattern.startswith("./"):
-            pattern = pattern[2:]
+        pattern = pattern.removeprefix("./")
         pattern = pattern.rstrip("/")
         if not pattern:
             continue

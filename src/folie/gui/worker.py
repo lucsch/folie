@@ -1,9 +1,9 @@
 """Génération en arrière-plan sans dépendance à wxPython."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Thread
-from typing import Callable
 
 from folie.core.generator import GenerationResult, ScanProgress, generate_html
 
