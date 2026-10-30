@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.XX] - YYYY-MM-DD
+## [1.1.XX] - 2026-10-30
 
 ### Added
 - First public Release of Folie

@@ -1,7 +1,16 @@
 """Point d'entrée du programme winfolie."""
 
+import sys
+
 
 def main() -> None:
+    # Velopack attend une sortie rapide, sans GUI, pour ces étapes du cycle de vie.
+    if len(sys.argv) > 1 and sys.argv[1] in {
+        "--veloapp-install", "--veloapp-obsolete",
+        "--veloapp-updated", "--veloapp-uninstall",
+    }:
+        return
+
     try:
         import wx
     except ModuleNotFoundError as exc:

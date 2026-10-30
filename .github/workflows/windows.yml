@@ -14,6 +14,7 @@ jobs:
     runs-on: windows-latest
     env:
       UV_PYTHON: "3.14"
+      VELOPACK_VERSION: "1.2.161"
 
     steps:
     - name: Checkout
@@ -35,25 +36,59 @@ jobs:
     - name: Build app
       run: uv run --extra gui python tools/createapp.py Windows
 
-    - name: Package app
+    - name: Read build version
+      id: version
       shell: pwsh
       run: |
+        uv run --no-sync python -c "import os, runpy; v = runpy.run_path('src/folie/_build_version.py'); f = open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8'); print('commit_number=' + v['COMMIT_NUMBER'], file=f); print('pack_version=' + v['VERSION_MAJOR_MINOR'] + '.' + v['COMMIT_NUMBER'], file=f); f.close()"
+
+    - name: Set up .NET SDK for Velopack
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: "8.0.x"
+
+    - name: Install Velopack
+      run: dotnet tool install --global vpk --version $env:VELOPACK_VERSION
+
+    - name: Build per-user installer
+      shell: pwsh
+      env:
+        PACK_VERSION: ${{ steps.version.outputs.pack_version }}
+        COMMIT_NUMBER: ${{ steps.version.outputs.commit_number }}
+      run: |
         New-Item -ItemType Directory -Force artifacts
-        Compress-Archive -Path dist/* -DestinationPath artifacts/folie-windows.zip -Force
+        # Keep the two PyInstaller runtimes separate; WinFolie is the main app.
+        New-Item -ItemType Directory -Force build/velopack
+        Copy-Item -Path dist/winfolie/* -Destination build/velopack -Recurse
+        Copy-Item -Path dist/folie -Destination build/velopack/cli -Recurse
+
+        # Lifecycle hooks are handled by the app without the Velopack update SDK.
+        # Setup.exe installs to LocalAppData without elevation; do not generate MSI.
+        vpk pack --packId Folie --packTitle WinFolie `
+          --packVersion $env:PACK_VERSION --packDir build/velopack `
+          --mainExe winfolie.exe --runtime win-x64 `
+          --outputDir build/velopack-releases --noPortable --skipVeloAppCheck
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        $setups = @(Get-ChildItem -Path build/velopack-releases -Filter '*-Setup.exe' -File)
+        if ($setups.Count -ne 1) { throw "Expected exactly one Velopack Setup.exe, found $($setups.Count)" }
+        Copy-Item -LiteralPath $setups[0].FullName -Destination "artifacts/folie_setup_$env:COMMIT_NUMBER.exe"
 
     - name: Upload workflow artifact
       uses: actions/upload-artifact@v7
       with:
         name: folie-windows
         retention-days: 3
-        path: |
-          artifacts/folie-windows.zip
+        if-no-files-found: error
+        path: artifacts/folie_setup_${{ steps.version.outputs.commit_number }}.exe
 
     - name: Upload release artifacts
       if: github.event_name == 'release'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+        COMMIT_NUMBER: ${{ steps.version.outputs.commit_number }}
       run: >-
-        gh release upload "${{ github.event.release.tag_name }}"
-        "artifacts/folie-windows.zip"
+        gh release upload "$env:RELEASE_TAG"
+        "artifacts/folie_setup_$env:COMMIT_NUMBER.exe"
         --clobber
