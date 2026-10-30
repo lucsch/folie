@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<wxFormBuilder_Project>
+  <FileVersion major="1" minor="18"/>
+  <object class="Project" expanded="true">
+    <property name="code_generation">Python</property>
+    <property name="cpp_class_decoration">; </property>
+    <property name="cpp_disconnect_events">0</property>
+    <property name="cpp_event_generation">connect</property>
+    <property name="cpp_help_provider">none</property>
+    <property name="cpp_namespace"></property>
+    <property name="cpp_precompiled_header"></property>
+    <property name="cpp_use_array_enum">0</property>
+    <property name="cpp_use_enum">1</property>
+    <property name="embedded_files_path">res</property>
+    <property name="encoding">UTF-8</property>
+    <property name="file">folie_ui_base</property>
+    <property name="first_id">6000</property>
+    <property name="internationalize">0</property>
+    <property name="lua_skip_events">1</property>
+    <property name="lua_ui_table">UI</property>
+    <property name="name">WinFolie</property>
+    <property name="path">.</property>
+    <property name="php_disconnect_events">0</property>
+    <property name="php_disconnect_mode">source_name</property>
+    <property name="php_skip_events">1</property>
+    <property name="python_disconnect_events">0</property>
+    <property name="python_disconnect_mode">source_name</property>
+    <property name="python_image_path_wrapper_function_name"></property>
+    <property name="python_indent_with_spaces">1</property>
+    <property name="python_skip_events">1</property>
+    <property name="relative_path">1</property>
+    <property name="use_microsoft_bom">0</property>
+    <property name="use_native_eol">0</property>
+    <!-- Maquette de src/folie/gui/main_window.py. Le titre versionné et le chemin
+         absolu du fichier de sortie sont calculés par l'application à l'exécution. -->
+    <object class="Frame" expanded="true">
+      <property name="name">MainWindow</property>
+      <property name="title">WinFolie</property>
+      <property name="size">760,650</property>
+      <property name="minimum_size">620,580</property>
+      <property name="style">wxDEFAULT_FRAME_STYLE</property>
+      <property name="window_style"></property>
+      <property name="center">wxBOTH</property>
+      <event name="OnClose">_on_close</event>
+      <object class="wxBoxSizer" expanded="true">
+        <property name="name">frame_layout</property>
+        <property name="orient">wxVERTICAL</property>
+        <object class="sizeritem" expanded="true">
+          <property name="proportion">1</property>
+          <property name="flag">wxEXPAND</property>
+          <property name="border">0</property>
+          <object class="wxPanel" expanded="true">
+            <property name="name">panel</property>
+            <property name="window_style">wxTAB_TRAVERSAL</property>
+            <object class="wxBoxSizer" expanded="true">
+              <property name="name">layout</property>
+              <property name="orient">wxVERTICAL</property>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxStaticText" expanded="true">
+                  <property name="name">source_label</property>
+                  <property name="label">Répertoire à inventorier</property>
+                  <property name="wrap">-1</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxEXPAND|wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxDirPickerCtrl" expanded="true">
+                  <property name="name">source</property>
+                  <property name="message">Répertoire à inventorier</property>
+                  <property name="value"></property>
+                  <property name="style">wxDIRP_USE_TEXTCTRL|wxDIRP_DIR_MUST_EXIST</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxStaticText" expanded="true">
+                  <property name="name">output_label</property>
+                  <property name="label">Fichier HTML de sortie</property>
+                  <property name="wrap">-1</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxEXPAND|wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxFilePickerCtrl" expanded="true">
+                  <property name="name">output</property>
+                  <property name="message">Enregistrer l’inventaire</property>
+                  <property name="wildcard">Fichiers HTML (*.html)|*.html</property>
+                  <property name="value">index_fichiers.html</property>
+                  <property name="style">wxFLP_SAVE|wxFLP_USE_TEXTCTRL</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxStaticText" expanded="true">
+                  <property name="name">title_label</property>
+                  <property name="label">Titre de la page (facultatif)</property>
+                  <property name="wrap">-1</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxEXPAND|wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxTextCtrl" expanded="true">
+                  <property name="name">title</property>
+                  <property name="value"></property>
+                  <property name="style">0</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxStaticText" expanded="true">
+                  <property name="name">exclusions_label</property>
+                  <property name="label">Dossiers à exclure — un motif par ligne (* et ? acceptés)</property>
+                  <property name="wrap">-1</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxEXPAND|wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxTextCtrl" expanded="true">
+                  <property name="name">exclusions</property>
+                  <property name="value"></property>
+                  <property name="style">wxTE_MULTILINE</property>
+                  <property name="size">-1,90</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxCheckBox" expanded="true">
+                  <property name="name">hidden</property>
+                  <property name="label">Exclure les dossiers cachés</property>
+                  <property name="checked">0</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxCheckBox" expanded="true">
+                  <property name="name">sort</property>
+                  <property name="label">Trier les fichiers et les dossiers</property>
+                  <property name="checked">1</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxLEFT|wxRIGHT|wxTOP</property>
+                <property name="border">12</property>
+                <object class="wxCheckBox" expanded="true">
+                  <property name="name">show_progress</property>
+                  <property name="label">Afficher la progression</property>
+                  <property name="checked">1</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxALL</property>
+                <property name="border">12</property>
+                <object class="wxBoxSizer" expanded="true">
+                  <property name="name">actions</property>
+                  <property name="orient">wxHORIZONTAL</property>
+                  <object class="sizeritem" expanded="true">
+                    <property name="proportion">0</property>
+                    <property name="flag">wxRIGHT</property>
+                    <property name="border">8</property>
+                    <object class="wxButton" expanded="true">
+                      <property name="name">generate</property>
+                      <property name="label">Générer l’inventaire</property>
+                      <event name="OnButtonClick">_on_generate</event>
+                    </object>
+                  </object>
+                  <object class="sizeritem" expanded="true">
+                    <property name="proportion">0</property>
+                    <property name="flag">0</property>
+                    <property name="border">0</property>
+                    <object class="wxButton" expanded="true">
+                      <property name="name">open_result</property>
+                      <property name="label">Ouvrir l’inventaire</property>
+                      <property name="enabled">0</property>
+                      <event name="OnButtonClick">_on_open</event>
+                    </object>
+                  </object>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">0</property>
+                <property name="flag">wxEXPAND|wxLEFT|wxRIGHT</property>
+                <property name="border">12</property>
+                <object class="wxGauge" expanded="true">
+                  <property name="name">gauge</property>
+                  <property name="range">100</property>
+                  <property name="value">0</property>
+                  <property name="style">wxGA_HORIZONTAL</property>
+                </object>
+              </object>
+              <object class="sizeritem" expanded="true">
+                <property name="proportion">1</property>
+                <property name="flag">wxEXPAND|wxALL</property>
+                <property name="border">12</property>
+                <object class="wxTextCtrl" expanded="true">
+                  <property name="name">status</property>
+                  <property name="value">Prêt.</property>
+                  <property name="style">wxTE_MULTILINE|wxTE_READONLY</property>
+                </object>
+              </object>
+            </object>
+          </object>
+        </object>
+      </object>
+    </object>
+  </object>
+</wxFormBuilder_Project>
